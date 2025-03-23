@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Report Overflow{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-4">Report Bin Overflow</h2>
+                
+                <form method="POST" action="{{ url_for('main.report_overflow') }}" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="bin_id" class="form-label">Select Bin</label>
+                        <select class="form-select" id="bin_id" name="bin_id" required>
+                            <option value="">Choose a bin...</option>
+                            {% for bin in bins %}
+                            <option value="{{ bin.id }}" {% if request.args.get('bin_id')|int == bin.id %}selected{% endif %}>
+                                {{ bin.location }} - 
+                                {% if bin.status == 'empty' %}
+                                Empty
+                                {% elif bin.status == 'half-full' %}
+                                Half Full
+                                {% else %}
+                                Full
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="photo" class="form-label">Upload Photo (Optional)</label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                            <label class="input-group-text" for="photo">
+                                <i class="fas fa-camera"></i>
+                            </label>
+                        </div>
+                        <div id="photoPreview" class="mt-2 d-none">
+                            <img src="" alt="Preview" class="img-thumbnail" style="max-height: 200px;">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="notes" class="form-label">Additional Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Add any additional information about the overflow..."></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Report
+                        </button>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tips Card -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h4 class="card-title mb-3">
+                    <i class="fas fa-lightbulb text-warning me-2"></i>Reporting Tips
+                </h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Take a clear photo of the overflowing bin
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Include any safety concerns in your notes
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Mention if there are any recyclable materials
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Report any damage to the bin
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Preview uploaded image
+document.getElementById('photo').addEventListener('change', function(e) {
+    const preview = document.getElementById('photoPreview');
+    const previewImg = preview.querySelector('img');
+    const file = e.target.files[0];
+
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.classList.remove('d-none');
+        }
+        reader.readAsDataURL(file);
+    } else {
+        preview.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 

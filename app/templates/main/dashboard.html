@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1 class="mb-4">Welcome, {{ current_user.username }}!</h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Actions -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Quick Actions</h4>
+                <div class="row">
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('main.report_overflow') }}" class="btn btn-primary d-block">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Report Overflow
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('main.bin_status') }}" class="btn btn-info d-block text-white">
+                            <i class="fas fa-trash me-2"></i>Check Bin Status
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('main.collection_schedule') }}" class="btn btn-success d-block">
+                            <i class="fas fa-calendar me-2"></i>View Schedule
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{{ url_for('main.recycling_tips') }}" class="btn btn-warning d-block text-white">
+                            <i class="fas fa-leaf me-2"></i>Recycling Tips
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nearby Bins -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Nearby Bins</h4>
+                {% if nearby_bins %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bin in nearby_bins %}
+                            <tr>
+                                <td>{{ bin.location }}</td>
+                                <td>
+                                    {% if bin.status == 'empty' %}
+                                    <span class="badge bg-success">Empty</span>
+                                    {% elif bin.status == 'half-full' %}
+                                    <span class="badge bg-warning">Half Full</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Full</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ bin.last_updated.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No bins found near your location.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Collections -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Upcoming Collections</h4>
+                {% if upcoming_collections %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for collection in upcoming_collections %}
+                            <tr>
+                                <td>{{ collection.collection_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ collection.bin.location }}</td>
+                                <td>
+                                    {% if collection.completed %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% else %}
+                                    <span class="badge bg-info">Scheduled</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No upcoming collections scheduled.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Reports -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Your Recent Reports</h4>
+                {% if user_reports %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                                <th>Photo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in user_reports %}
+                            <tr>
+                                <td>{{ report.report_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ report.bin.location }}</td>
+                                <td>
+                                    {% if report.status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Resolved</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ report.notes[:50] + '...' if report.notes and report.notes|length > 50 else report.notes }}</td>
+                                <td>
+                                    {% if report.photo_path %}
+                                    <a href="{{ url_for('static', filename=report.photo_path) }}" target="_blank">
+                                        <i class="fas fa-image"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">No photo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">You haven't submitted any reports yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
