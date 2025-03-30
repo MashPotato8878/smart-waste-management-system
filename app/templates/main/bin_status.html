@@ -164,16 +164,38 @@ function initMap() {
 
     // Add markers for each bin
     {% for bin in bins %}
-    addMarker({
+    const binData = {
         position: [{{ bin.latitude }}, {{ bin.longitude }}],
         title: "Bin #{{ bin.id }}",
         status: "{{ bin.status }}",
         id: {{ bin.id }}
-    });
+    };
+    addMarker(binData);
     {% endfor %}
 
     // Try to get user's location
     getCurrentLocation();
+}
+
+function addMarker(binData) {
+    const marker = L.marker(binData.position, {
+        icon: L.divIcon({
+            className: 'bin-marker',
+            html: `<div class="bin-icon ${binData.status}"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        })
+    });
+
+    marker.bindPopup(`
+        <strong>${binData.title}</strong><br>
+        Status: ${binData.status}<br>
+        <button onclick="showEditBinModal(${binData.id})" class="btn btn-sm btn-info">Edit</button>
+        <button onclick="deleteBin(${binData.id})" class="btn btn-sm btn-danger">Delete</button>
+    `);
+
+    marker.addTo(map);
+    markers.push({ id: binData.id, marker: marker });
 }
 
 function getCurrentLocation() {
@@ -204,12 +226,11 @@ function getCurrentLocation() {
                 }).addTo(map);
             },
             (error) => {
-                console.error('Error getting location:', error);
-                alert('Unable to get your location. Please enable location services or search for a location.');
+                console.error("Error getting location:", error);
+                // Default to a world view if location access is denied
+                map.setView([0, 0], 2);
             }
         );
-    } else {
-        alert('Geolocation is not supported by your browser');
     }
 }
 
@@ -220,109 +241,60 @@ function searchLocation() {
     }
 }
 
-function addMarker(props) {
-    // Create custom icon based on status
-    const iconColor = props.status === 'empty' ? 'green' : 
-                     props.status === 'half-full' ? 'yellow' : 'red';
-    
-    const icon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="
-            background-color: ${iconColor};
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.5);
-        "></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6]
-    });
-
-    const marker = L.marker(props.position, { icon: icon })
-        .addTo(map)
-        .bindPopup(`
-            <div>
-                <h6>${props.title}</h6>
-                <p>Status: ${props.status}</p>
-                <a href="/report-overflow?bin_id=${props.id}" class="btn btn-warning btn-sm">Report Overflow</a>
-            </div>
-        `);
-
-    markers.push(marker);
-}
-
 function showEditBinModal(binId) {
+    document.getElementById('editBinId').value = binId;
+    
     // Initialize edit map if not already done
     if (!editMap) {
         editMap = L.map('editMap').setView([0, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(editMap);
-
-        // Add search control to edit map
-        L.Control.geocoder({
-            defaultMarkGeocode: false,
-            placeholder: 'Search location...',
-            errorMessage: 'No results found.',
-            showResultIcons: true,
-            suggestMinLength: 3,
-            suggestTimeout: 250,
-            queryMinLength: 1,
-            suggestMaxLength: 5
-        }).addTo(editMap);
-
-        // Allow clicking to place marker
-        editMap.on('click', function(e) {
-            placeEditMarker(e.latlng);
-        });
     }
 
-    // Get bin data and populate form
+    // Get the bin data
     fetch(`/api/bins/${binId}`)
         .then(response => response.json())
-        .then(data => {
-            document.getElementById('editBinId').value = data.id;
-            document.getElementById('editLocation').value = data.location;
-            document.getElementById('editStatus').value = data.status;
-            document.getElementById('editLatitude').value = data.latitude;
-            document.getElementById('editLongitude').value = data.longitude;
+        .then(bin => {
+            document.getElementById('editLocation').value = bin.location;
+            document.getElementById('editStatus').value = bin.status;
+            document.getElementById('editLatitude').value = bin.latitude;
+            document.getElementById('editLongitude').value = bin.longitude;
 
-            editMap.setView([data.latitude, data.longitude], 15);
-            placeEditMarker([data.latitude, data.longitude]);
+            const latlng = [bin.latitude, bin.longitude];
+            editMap.setView(latlng, 15);
+
+            if (editMarker) {
+                editMap.removeLayer(editMarker);
+            }
+            editMarker = L.marker(latlng, { draggable: true }).addTo(editMap);
+            
+            editMarker.on('dragend', function(event) {
+                const position = event.target.getLatLng();
+                document.getElementById('editLatitude').value = position.lat;
+                document.getElementById('editLongitude').value = position.lng;
+            });
         });
 
-    // Show modal
-    new bootstrap.Modal(document.getElementById('editBinModal')).show();
-}
-
-function placeEditMarker(location) {
-    if (editMarker) {
-        editMap.removeLayer(editMarker);
-    }
-    editMarker = L.marker(location, { draggable: true }).addTo(editMap);
-
-    // Update form when marker is dragged
-    editMarker.on('dragend', function(e) {
-        document.getElementById('editLatitude').value = e.target.getLatLng().lat;
-        document.getElementById('editLongitude').value = e.target.getLatLng().lng;
-    });
-
-    // Update form with initial position
-    document.getElementById('editLatitude').value = location[0];
-    document.getElementById('editLongitude').value = location[1];
+    const modal = new bootstrap.Modal(document.getElementById('editBinModal'));
+    modal.show();
 }
 
 function saveBinEdit() {
     const formData = new FormData(document.getElementById('editBinForm'));
     const binId = formData.get('bin_id');
-
+    
     fetch(`/api/bins/${binId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(Object.fromEntries(formData)),
+        body: JSON.stringify({
+            location: formData.get('location'),
+            status: formData.get('status'),
+            latitude: parseFloat(formData.get('latitude')),
+            longitude: parseFloat(formData.get('longitude'))
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -331,13 +303,17 @@ function saveBinEdit() {
         } else {
             alert('Error updating bin: ' + data.message);
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating bin');
     });
 }
 
 function deleteBin(binId) {
     if (confirm('Are you sure you want to delete this bin?')) {
         fetch(`/api/bins/${binId}`, {
-            method: 'DELETE',
+            method: 'DELETE'
         })
         .then(response => response.json())
         .then(data => {
@@ -346,11 +322,43 @@ function deleteBin(binId) {
             } else {
                 alert('Error deleting bin: ' + data.message);
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting bin');
         });
     }
 }
 
-// Initialize map when page loads
+// Initialize map when the page loads
 document.addEventListener('DOMContentLoaded', initMap);
 </script>
+
+<style>
+.map-container {
+    height: 400px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.bin-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+.bin-icon.empty {
+    background-color: #28a745;
+}
+
+.bin-icon.half-full {
+    background-color: #ffc107;
+}
+
+.bin-icon.full {
+    background-color: #dc3545;
+}
+</style>
 {% endblock %} 

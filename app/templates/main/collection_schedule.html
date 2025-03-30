@@ -120,13 +120,12 @@ function initMap() {
             })
         }).addTo(map);
     });
-
     // Add markers for each collection point
     {% for collection in schedule %}
     addMarker({
         position: [{{ collection.bin.latitude }}, {{ collection.bin.longitude }}],
         title: "Collection at {{ collection.bin.location }}",
-        time: "{{ collection.collection_time.strftime('%Y-%m-%d %H:%M') }}",
+        time: "{{ collection.collection_time.strftime('%Y-%m-%d %H:%M') }}"
         status: "{{ 'Completed' if collection.completed else 'Past Due' if collection.is_past_due else 'Pending' }}",
         id: {{ collection.id }}
     });

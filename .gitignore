@@ -24,22 +24,27 @@ wheels/
 venv/
 ENV/
 env/
+.env
+
+# Flask
+instance/
+.webassets-cache
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# Database
-*.db
-*.sqlite3
-
-# Environment variables
-.env
+.DS_Store
 
 # Logs
 *.log
+logs/
 
 # Uploads
 app/static/uploads/*
