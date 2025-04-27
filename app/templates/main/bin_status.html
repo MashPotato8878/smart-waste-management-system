@@ -20,7 +20,7 @@
                 <div class="col-md-6">
                     <div class="input-group">
                         <input type="text" id="locationSearch" class="form-control" placeholder="Search location...">
-                        <button class="btn btn-outline-secondary" type="button" onclick="searchLocation()">
+                        <button class="btn btn-outline-secondary" type="button">
                             <i class="fas fa-search"></i> Search
                         </button>
                         <button class="btn btn-outline-primary" type="button" onclick="getCurrentLocation()">
@@ -109,14 +109,14 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCmeyfacLNED6zEWVM11-nxBWczPjeEdeg"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCmeyfacLNED6zEWVM11-nxBWczPjeEdeg&libraries=places"></script>
 <script>
 let map;
 let markers = [];
 let editMap;
 let editMarker;
 let userMarker;
-let searchControl;
+let autocomplete;
 
 function initMap() {
     // Center map (default to Malaysia)
@@ -137,6 +137,28 @@ function initMap() {
 
     // Try to get user's location
     getCurrentLocation();
+
+    // Initialize autocomplete search
+    initAutocomplete();
+}
+
+function initAutocomplete() {
+    const input = document.getElementById('locationSearch');
+    autocomplete = new google.maps.places.Autocomplete(input);
+    autocomplete.bindTo('bounds', map);
+    autocomplete.addListener('place_changed', function() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) {
+            alert('No details available for input: ' + place.name);
+            return;
+        }
+        if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+        } else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(15);
+        }
+    });
 }
 
 function addMarker(props) {
