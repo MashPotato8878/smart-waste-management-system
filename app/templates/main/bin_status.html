@@ -29,7 +29,7 @@
                     </div>
                 </div>
             </div>
-            <div id="map" class="map-container"></div>
+            <div id="map" style="height: 400px; width: 100%;"></div>
         </div>
     </div>
 
@@ -109,6 +109,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCmeyfacLNED6zEWVM11-nxBWczPjeEdeg"></script>
 <script>
 let map;
 let markers = [];
@@ -118,126 +119,101 @@ let userMarker;
 let searchControl;
 
 function initMap() {
-    // Initialize main map
-    map = L.map('map').setView([0, 0], 2); // Start with a world view
-
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Add search control
-    searchControl = L.Control.geocoder({
-        defaultMarkGeocode: false,
-        placeholder: 'Search location...',
-        errorMessage: 'No results found.',
-        showResultIcons: true,
-        suggestMinLength: 3,
-        suggestTimeout: 250,
-        queryMinLength: 1,
-        suggestMaxLength: 5
-    }).addTo(map);
-
-    // Handle search results
-    searchControl.on('markgeocode', function(e) {
-        const latlng = e.geocode.center;
-        map.setView(latlng, 15);
-        if (userMarker) {
-            map.removeLayer(userMarker);
-        }
-        userMarker = L.marker(latlng, {
-            icon: L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="
-                    background-color: blue;
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    border: 2px solid white;
-                    box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                "></div>`,
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            })
-        }).addTo(map);
+    // Center map (default to Malaysia)
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 3.139, lng: 101.6869 },
+        zoom: 6
     });
 
-    // Add markers for each bin
+    // Add bin markers
     {% for bin in bins %}
-    const binData = {
-        position: [{{ bin.latitude }}, {{ bin.longitude }}],
+    addMarker({
+        position: { lat: {{ bin.latitude }}, lng: {{ bin.longitude }} },
         title: "Bin #{{ bin.id }}",
         status: "{{ bin.status }}",
         id: {{ bin.id }}
-    };
-    addMarker(binData);
+    });
     {% endfor %}
 
     // Try to get user's location
     getCurrentLocation();
 }
 
-function addMarker(binData) {
-    const marker = L.marker(binData.position, {
-        icon: L.divIcon({
-            className: 'bin-marker',
-            html: `<div class="bin-icon ${binData.status}"></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-        })
+function addMarker(props) {
+    let color;
+    if (props.status === 'empty') color = 'green';
+    else if (props.status === 'half-full') color = 'yellow';
+    else color = 'red';
+
+    const marker = new google.maps.Marker({
+        position: props.position,
+        map: map,
+        title: props.title,
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: 'white'
+        }
     });
 
-    marker.bindPopup(`
-        <strong>${binData.title}</strong><br>
-        Status: ${binData.status}<br>
-        <button onclick="showEditBinModal(${binData.id})" class="btn btn-sm btn-info">Edit</button>
-        <button onclick="deleteBin(${binData.id})" class="btn btn-sm btn-danger">Delete</button>
-    `);
+    const infoWindow = new google.maps.InfoWindow({
+        content: `<div>
+            <h6>${props.title}</h6>
+            <p>Status: ${props.status}</p>
+            <a href="/report-overflow?bin_id=${props.id}" class="btn btn-warning btn-sm">Report Overflow</a>
+        </div>`
+    });
 
-    marker.addTo(map);
-    markers.push({ id: binData.id, marker: marker });
+    marker.addListener('click', function() {
+        infoWindow.open(map, marker);
+    });
+
+    markers.push(marker);
 }
 
 function getCurrentLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const latlng = [position.coords.latitude, position.coords.longitude];
-                map.setView(latlng, 15);
-                
-                // Add or update user marker
-                if (userMarker) {
-                    map.removeLayer(userMarker);
-                }
-                userMarker = L.marker(latlng, {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: `<div style="
-                            background-color: blue;
-                            width: 12px;
-                            height: 12px;
-                            border-radius: 50%;
-                            border: 2px solid white;
-                            box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                        "></div>`,
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6]
-                    })
-                }).addTo(map);
+                const latlng = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                map.setCenter(latlng);
+                map.setZoom(15);
+
+                if (userMarker) userMarker.setMap(null);
+                userMarker = new google.maps.Marker({
+                    position: latlng,
+                    map: map,
+                    title: "Your Location",
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: 'blue',
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: 'white'
+                    }
+                });
             },
             (error) => {
-                console.error("Error getting location:", error);
-                // Default to a world view if location access is denied
-                map.setView([0, 0], 2);
+                alert('Unable to get your location. Please enable location services or search for a location.');
             }
         );
+    } else {
+        alert('Geolocation is not supported by your browser');
     }
 }
 
 function searchLocation() {
     const searchInput = document.getElementById('locationSearch').value;
     if (searchInput) {
-        searchControl.geocode(searchInput);
+        // Google Maps does not support search functionality
+        alert('Google Maps does not support search functionality');
     }
 }
 
@@ -246,10 +222,10 @@ function showEditBinModal(binId) {
     
     // Initialize edit map if not already done
     if (!editMap) {
-        editMap = L.map('editMap').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(editMap);
+        editMap = new google.maps.Map(document.getElementById('editMap'), {
+            center: { lat: 0, lng: 0 },
+            zoom: 2
+        });
     }
 
     // Get the bin data
@@ -261,18 +237,23 @@ function showEditBinModal(binId) {
             document.getElementById('editLatitude').value = bin.latitude;
             document.getElementById('editLongitude').value = bin.longitude;
 
-            const latlng = [bin.latitude, bin.longitude];
-            editMap.setView(latlng, 15);
+            const latlng = { lat: bin.latitude, lng: bin.longitude };
+            editMap.setCenter(latlng);
+            editMap.setZoom(15);
 
             if (editMarker) {
-                editMap.removeLayer(editMarker);
+                editMarker.setMap(null);
             }
-            editMarker = L.marker(latlng, { draggable: true }).addTo(editMap);
+            editMarker = new google.maps.Marker({
+                position: latlng,
+                map: editMap,
+                draggable: true
+            });
             
-            editMarker.on('dragend', function(event) {
-                const position = event.target.getLatLng();
-                document.getElementById('editLatitude').value = position.lat;
-                document.getElementById('editLongitude').value = position.lng;
+            editMarker.addListener('dragend', function() {
+                const position = editMarker.getPosition();
+                document.getElementById('editLatitude').value = position.lat();
+                document.getElementById('editLongitude').value = position.lng();
             });
         });
 

@@ -52,42 +52,21 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCmeyfacLNED6zEWVM11-nxBWczPjeEdeg"></script>
 <script>
 let map;
 let marker;
-let searchControl;
 
 function initMap() {
-    // Initialize map
-    map = L.map('map').setView([0, 0], 2);
-
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Add search control
-    searchControl = L.Control.geocoder({
-        defaultMarkGeocode: false,
-        placeholder: 'Search location...',
-        errorMessage: 'No results found.',
-        showResultIcons: true,
-        suggestMinLength: 3,
-        suggestTimeout: 250,
-        queryMinLength: 1,
-        suggestMaxLength: 5
-    }).addTo(map);
-
-    // Handle search results
-    searchControl.on('markgeocode', function(e) {
-        const latlng = e.geocode.center;
-        map.setView(latlng, 15);
-        updateMarker(latlng);
+    // Center map (default to Malaysia)
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 3.139, lng: 101.6869 },
+        zoom: 6
     });
 
     // Handle map clicks
-    map.on('click', function(e) {
-        updateMarker(e.latlng);
+    map.addListener('click', function(e) {
+        updateMarker(e.latLng);
     });
 
     // Try to get user's location
@@ -98,12 +77,15 @@ function getCurrentLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const latlng = [position.coords.latitude, position.coords.longitude];
-                map.setView(latlng, 15);
+                const latlng = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                map.setCenter(latlng);
+                map.setZoom(15);
                 updateMarker(latlng);
             },
             (error) => {
-                console.error('Error getting location:', error);
                 alert('Unable to get your location. Please search for a location or click on the map.');
             }
         );
@@ -114,31 +96,25 @@ function getCurrentLocation() {
 
 function updateMarker(latlng) {
     if (marker) {
-        map.removeLayer(marker);
+        marker.setMap(null);
     }
-
-    marker = L.marker(latlng, {
-        icon: L.divIcon({
-            className: 'custom-div-icon',
-            html: `<div style="
-                background-color: blue;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 0 4px rgba(0,0,0,0.5);
-            "></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6]
-        })
-    }).addTo(map);
-
+    marker = new google.maps.Marker({
+        position: latlng,
+        map: map,
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: 'blue',
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: 'white'
+        }
+    });
     // Update hidden inputs
     document.getElementById('latitude').value = latlng.lat;
     document.getElementById('longitude').value = latlng.lng;
 }
 
-// Initialize map when page loads
 document.addEventListener('DOMContentLoaded', initMap);
 </script>
 {% endblock %} 

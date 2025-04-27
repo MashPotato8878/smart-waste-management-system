@@ -22,7 +22,7 @@
                     </div>
                 </div>
             </div>
-            <div id="map" class="map-container"></div>
+            <div id="map" style="height: 400px; width: 100%;"></div>
         </div>
     </div>
 
@@ -70,64 +70,27 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCmeyfacLNED6zEWVM11-nxBWczPjeEdeg"></script>
 <script>
 let map;
 let markers = [];
 let userMarker;
-let searchControl;
 
 function initMap() {
-    // Initialize map
-    map = L.map('map').setView([0, 0], 2); // Start with a world view
-
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Add search control
-    searchControl = L.Control.geocoder({
-        defaultMarkGeocode: false,
-        placeholder: 'Search location...',
-        errorMessage: 'No results found.',
-        showResultIcons: true,
-        suggestMinLength: 3,
-        suggestTimeout: 250,
-        queryMinLength: 1,
-        suggestMaxLength: 5
-    }).addTo(map);
-
-    // Handle search results
-    searchControl.on('markgeocode', function(e) {
-        const latlng = e.geocode.center;
-        map.setView(latlng, 15);
-        if (userMarker) {
-            map.removeLayer(userMarker);
-        }
-        userMarker = L.marker(latlng, {
-            icon: L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="
-                    background-color: blue;
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    border: 2px solid white;
-                    box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                "></div>`,
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            })
-        }).addTo(map);
+    // Center map (default to Malaysia)
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 3.139, lng: 101.6869 },
+        zoom: 6
     });
-    // Add markers for each collection point
-    {% for collection in schedule %}
+
+    // Add collection schedule markers
+    {% for item in schedule %}
     addMarker({
-        position: [{{ collection.bin.latitude }}, {{ collection.bin.longitude }}],
-        title: "Collection at {{ collection.bin.location }}",
-        time: "{{ collection.collection_time.strftime('%Y-%m-%d %H:%M') }}"
-        status: "{{ 'Completed' if collection.completed else 'Past Due' if collection.is_past_due else 'Pending' }}",
-        id: {{ collection.id }}
+        position: { lat: {{ item.bin.latitude }}, lng: {{ item.bin.longitude }} },
+        title: "Collection for Bin #{{ item.bin.id }}",
+        time: "{{ item.collection_time.strftime('%Y-%m-%d %H:%M') }}",
+        completed: "{{ 'true' if item.completed else 'false' }}",
+        notes: "{{ item.notes|default('') }}"
     });
     {% endfor %}
 
@@ -135,35 +98,66 @@ function initMap() {
     getCurrentLocation();
 }
 
+function addMarker(props) {
+    let color = props.completed === 'true' ? 'gray' : 'blue';
+
+    const marker = new google.maps.Marker({
+        position: props.position,
+        map: map,
+        title: props.title,
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: 'white'
+        }
+    });
+
+    const infoWindow = new google.maps.InfoWindow({
+        content: `<div>
+            <h6>${props.title}</h6>
+            <p><strong>Time:</strong> ${props.time}</p>
+            <p><strong>Notes:</strong> ${props.notes}</p>
+            <p><strong>Status:</strong> ${props.completed === 'true' ? 'Completed' : 'Upcoming'}</p>
+        </div>`
+    });
+
+    marker.addListener('click', function() {
+        infoWindow.open(map, marker);
+    });
+
+    markers.push(marker);
+}
+
 function getCurrentLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const latlng = [position.coords.latitude, position.coords.longitude];
-                map.setView(latlng, 15);
-                
-                // Add or update user marker
-                if (userMarker) {
-                    map.removeLayer(userMarker);
-                }
-                userMarker = L.marker(latlng, {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: `<div style="
-                            background-color: blue;
-                            width: 12px;
-                            height: 12px;
-                            border-radius: 50%;
-                            border: 2px solid white;
-                            box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                        "></div>`,
-                        iconSize: [12, 12],
-                        iconAnchor: [6, 6]
-                    })
-                }).addTo(map);
+                const latlng = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                map.setCenter(latlng);
+                map.setZoom(15);
+
+                if (userMarker) userMarker.setMap(null);
+                userMarker = new google.maps.Marker({
+                    position: latlng,
+                    map: map,
+                    title: "Your Location",
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: 'green',
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: 'white'
+                    }
+                });
             },
             (error) => {
-                console.error('Error getting location:', error);
                 alert('Unable to get your location. Please enable location services or search for a location.');
             }
         );
@@ -175,40 +169,9 @@ function getCurrentLocation() {
 function searchLocation() {
     const searchInput = document.getElementById('locationSearch').value;
     if (searchInput) {
-        searchControl.geocode(searchInput);
+        // Implement Google Maps search functionality
+        alert('Google Maps search functionality not implemented');
     }
-}
-
-function addMarker(props) {
-    // Create custom icon based on status
-    const iconColor = props.status === 'Completed' ? 'green' : 
-                     props.status === 'Pending' ? 'yellow' : 'red';
-    
-    const icon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="
-            background-color: ${iconColor};
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.5);
-        "></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6]
-    });
-
-    const marker = L.marker(props.position, { icon: icon })
-        .addTo(map)
-        .bindPopup(`
-            <div>
-                <h6>${props.title}</h6>
-                <p>Time: ${props.time}</p>
-                <p>Status: ${props.status}</p>
-            </div>
-        `);
-
-    markers.push(marker);
 }
 
 function markAsCompleted(collectionId) {
@@ -227,7 +190,6 @@ function markAsCompleted(collectionId) {
     }
 }
 
-// Initialize map when page loads
 document.addEventListener('DOMContentLoaded', initMap);
 </script>
 {% endblock %} 
