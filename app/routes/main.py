@@ -74,7 +74,7 @@ def report_overflow():
             db.session.rollback()
             flash('An error occurred. Please try again.')
             
-    bins = Bin.query.filter_by(location=current_user.address).all()
+    bins = Bin.query.all()
     return render_template('main/report_overflow.html', bins=bins)
 
 @main_bp.route('/recycling-tips')

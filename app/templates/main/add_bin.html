@@ -10,22 +10,25 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('main.add_bin') }}">
-                        {{ form.hidden_tag() }}
+                    <form method="POST" action="{{ url_for('main.add_bin') }}" id="addBinForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="mb-3">
                             <label for="location" class="form-label">Location Description</label>
                             <input type="text" class="form-control" id="location" name="location" required
                                    placeholder="e.g., Corner of Main Street and Park Avenue">
+                            <div class="invalid-feedback">Please provide a location description.</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="status" class="form-label">Initial Status</label>
                             <select class="form-select" id="status" name="status" required>
+                                <option value="">Select status...</option>
                                 <option value="empty">Empty</option>
                                 <option value="half-full">Half Full</option>
                                 <option value="full">Full</option>
                             </select>
+                            <div class="invalid-feedback">Please select a status.</div>
                         </div>
 
                         <div class="mb-3">
@@ -33,6 +36,7 @@
                             <div id="map" class="map-container"></div>
                             <input type="hidden" id="latitude" name="latitude" required>
                             <input type="hidden" id="longitude" name="longitude" required>
+                            <div class="invalid-feedback">Please select a location on the map.</div>
                         </div>
 
                         <div class="d-grid gap-2">
@@ -86,11 +90,10 @@ function getCurrentLocation() {
                 updateMarker(latlng);
             },
             (error) => {
-                alert('Unable to get your location. Please search for a location or click on the map.');
+                console.log('Unable to get location:', error);
+                // Don't show alert, just let user click on map
             }
         );
-    } else {
-        alert('Geolocation is not supported by your browser');
     }
 }
 
@@ -115,6 +118,55 @@ function updateMarker(latlng) {
     document.getElementById('longitude').value = latlng.lng;
 }
 
+// Form validation and submission
+document.getElementById('addBinForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    
+    if (!this.checkValidity()) {
+        event.stopPropagation();
+        this.classList.add('was-validated');
+        return;
+    }
+
+    const formData = {
+        location: document.getElementById('location').value,
+        status: document.getElementById('status').value,
+        latitude: parseFloat(document.getElementById('latitude').value),
+        longitude: parseFloat(document.getElementById('longitude').value)
+    };
+
+    fetch('/api/bins', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = "{{ url_for('main.bin_status') }}";
+        } else {
+            alert('Error adding bin: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding bin. Please try again.');
+    });
+});
+
 document.addEventListener('DOMContentLoaded', initMap);
 </script>
+
+<style>
+.map-container {
+    height: 400px;
+    width: 100%;
+    margin-bottom: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+</style>
 {% endblock %} 
