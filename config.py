@@ -12,7 +12,7 @@ class Config:
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
     if not SQLALCHEMY_DATABASE_URI:
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///waste_management.db'
+        SQLALCHEMY_DATABASE_URI = 'sqlite:////data/waste_management.db'  # Use persistent disk on Render
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'static', 'uploads')

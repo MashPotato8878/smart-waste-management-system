@@ -185,13 +185,4 @@ def update_report_status(report_id):
         flash('Report status updated.', 'success')
     else:
         flash('Invalid status.', 'danger')
-    return redirect(url_for('main.admin_reports'))
-
-@main_bp.route('/make-me-admin')
-@login_required
-def make_me_admin():
-    from ..models import User
-    user = User.query.filter_by(username=current_user.username).first()
-    user.is_admin = True
-    db.session.commit()
-    return "You are now an admin!" 
+    return redirect(url_for('main.admin_reports')) 

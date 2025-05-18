@@ -49,6 +49,7 @@ def create_app(config_class=Config):
             )
             admin.set_password('admin123')
             db.session.add(admin)
+            db.session.commit()
             # Add initial bins
             initial_bins = [
                 Bin(
