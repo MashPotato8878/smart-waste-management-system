@@ -13,6 +13,8 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    print('Using database:', app.config['SQLALCHEMY_DATABASE_URI'])
+
     # Ensure the upload folder exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
