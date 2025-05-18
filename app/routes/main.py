@@ -186,3 +186,11 @@ def update_report_status(report_id):
     else:
         flash('Invalid status.', 'danger')
     return redirect(url_for('main.admin_reports')) 
+@main_bp.route('/force-create-tables')
+def force_create_tables():
+    from .. import db
+    try:
+        db.create_all()
+        return "Tables created successfully!"
+    except Exception as e:
+        return f"Error creating tables: {e}"
