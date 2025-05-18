@@ -195,4 +195,4 @@ def force_create_tables():
         tables = db.engine.table_names()
         return f"Tables created successfully! Tables: {tables}"
     except Exception as e:
-        return f"Error creating tables: {e}" 
+        return f"Error creating tables: {e}"
