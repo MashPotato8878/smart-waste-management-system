@@ -13,6 +13,9 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Ensure the upload folder exists
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
     # Ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
@@ -36,8 +39,6 @@ def create_app(config_class=Config):
     # Create database tables and initial data
     with app.app_context():
         db.create_all()
-        
-        # Check if admin user exists
         from .models import User, Bin
         admin = User.query.filter_by(username='admin').first()
         if not admin:
@@ -48,7 +49,6 @@ def create_app(config_class=Config):
             )
             admin.set_password('admin123')
             db.session.add(admin)
-            
             # Add initial bins
             initial_bins = [
                 Bin(
@@ -77,6 +77,9 @@ def create_app(config_class=Config):
             db.session.commit()
             print('Database initialized successfully with admin user and initial bins.')
         else:
-            print('Database already initialized with admin user.')
+            # Ensure admin user always has is_admin=True
+            admin.is_admin = True
+            db.session.commit()
+            print('Database already initialized with admin user. Ensured is_admin=True.')
 
     return app 
